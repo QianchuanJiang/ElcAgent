@@ -1,0 +1,88 @@
+# Agent Card（M0 种子：2 张）
+#
+# 依据 docs/11 §3.2「2 张 Agent Card」。
+# 字段规范见 docs/01 §3。
+#
+# 说明：M0 阶段 agent_id 只是标识，尚无任何智能体逻辑（docs/11 §3.1）。
+
+version: v1.0
+agents:
+  - agent_id: A01_supervisor
+    name: 主控调度
+    role: 编排
+    description: >
+      负责任务规范化、意图识别与参数填充、执行图动态生成、预算与熔断、结果汇聚与人工升级。
+      任务入口需要被分解为执行图时调用我；纯粹的确定性数值计算不应经过我。
+    capabilities:
+      - orchestration
+      - intent_parsing
+      - risk_scoring
+      - rule_evaluation
+      - meteo_analysis
+      - asset_spatial
+    skills:
+      - model.extract_json
+      - risk.calc_icing_load
+    input_schema:
+      type: object
+      required: [task_id, intent]
+      properties:
+        task_id: { type: string }
+        intent: { type: string }
+    output_schema:
+      type: object
+      required: [plan_id, graph]
+      properties:
+        plan_id: { type: string }
+        graph: { type: object }
+    model_binding: light
+    memory_access:
+      read: [global, session, user]
+      write: [session]
+    max_concurrency: 2
+    cost_profile: { est_tokens: 1200, est_latency_ms: 2000 }
+    permission_scope: specialist
+    failure_policy:
+      timeout_ms: 30000
+      max_retries: 1
+      fallback_to: null
+      can_escalate_to_human: true
+    min_depth: L0
+    version: v0.1
+
+  - agent_id: A03_data_steward
+    name: 数据治理
+    role: 执行
+    description: >
+      负责历史编码到标准编码的口径映射、主数据解析、字段质量校验与异常隔离。
+      拿到跨系统来源的数据且口径未统一时调用我；已完成口径统一的数据无需再经过我。
+    capabilities:
+      - data_governance
+    skills:
+      - data.map_legacy_code
+    input_schema:
+      type: object
+      required: [records]
+      properties:
+        records: { type: array, items: { type: object } }
+        source_system: { type: string }
+    output_schema:
+      type: object
+      required: [mapped, quality_score]
+      properties:
+        mapped: { type: array, items: { type: object } }
+        quality_score: { type: number }
+    model_binding: none
+    memory_access:
+      read: [global]
+      write: []
+    max_concurrency: 4
+    cost_profile: { est_tokens: 0, est_latency_ms: 300 }
+    permission_scope: operator
+    failure_policy:
+      timeout_ms: 10000
+      max_retries: 1
+      fallback_to: null
+      can_escalate_to_human: false
+    min_depth: L0
+    version: v0.1

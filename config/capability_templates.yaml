@@ -1,0 +1,96 @@
+# 能力定义与意图能力需求模板（M0 种子：1 个意图模板）
+#
+# 依据 docs/09 §4.2（模板）与 §5.1（能力的输入输出声明）、docs/11 §3.2。
+#
+# 文件结构与《docs/11 §3.2 交付物表》中 capacity 相关两行对应：
+#   capabilities: 能力本体（inputs / outputs）—— 依赖推导的唯一依据
+#   templates:    意图 → 能力需求（required / conditional / optional）
+#
+# 设计要点（docs/09 §2）：模型的唯一职责是「理解人话」，绝不决定谁来干活。
+# 阶段二、三完全是确定性的查表与计算。
+#
+# NOTE：M0 只注册 2 个智能体，因此这里只放 1 个意图的最小模板。
+#       M2 扩到 3 个意图 + 8 个智能体时，在此文件追加，调度内核零改动。
+
+version: v1.0
+
+# ------------------------------------------------------------------ 能力本体
+capabilities:
+  - capability: data_governance
+    description: 口径统一、字段质量校验、异常隔离
+    inputs: [raw_records]
+    outputs: [governed_records, quality_score]
+    is_terminal: false
+
+  - capability: meteo_analysis
+    description: 气象时序特征提取与增长速率估计
+    inputs: [governed_records, meteo_timeseries]
+    outputs: [meteo_features]
+    is_terminal: false
+
+  - capability: asset_spatial
+    description: 台账空间相交初筛与微地形暴露度分级
+    inputs: [governed_records]
+    outputs: [candidate_spans]
+    is_terminal: false
+
+  - capability: rule_evaluation
+    description: 阈值与组合规则批量判定，产出越限清单
+    inputs: [candidate_spans, meteo_features, rule_pack]
+    outputs: [rule_hits]
+    is_terminal: false
+
+  - capability: risk_scoring
+    description: 三层加权的综合打分与排序
+    inputs: [meteo_features, candidate_spans, rule_hits]
+    outputs: [risk_ranking]
+    is_terminal: true
+
+  - capability: history_retrieval
+    description: 相似历史判断案例召回
+    inputs: [meteo_features, candidate_spans]
+    outputs: [similar_cases]
+    is_terminal: false
+
+  - capability: memory_retrieval
+    description: 记忆检索与窄筛选
+    inputs: [task_context]
+    outputs: [retrieved_memories]
+    is_terminal: false
+
+  - capability: confidence_review
+    description: 合成置信度评审与熔断判定
+    inputs: [risk_ranking, quality_score, rule_hits, similar_cases]
+    outputs: [critique_verdict]
+    is_terminal: true
+
+# ------------------------------------------------------------------ 意图模板
+templates:
+  - intent: risk_assessment
+    description: 灾害风险研判（docs/09 §4.2 示例的 M0 精简版）
+    terminal_output: risk_ranking
+    requires:
+      - capability: data_governance
+        mode: required
+
+      - capability: meteo_analysis
+        mode: required
+
+      - capability: asset_spatial
+        mode: required
+
+      - capability: rule_evaluation
+        mode: required
+
+      - capability: risk_scoring
+        mode: required
+
+      # 条件能力是「动态性」的主要来源（docs/09 §4.2）：
+      # 同一意图，因深度不同 / 有无监拍图，最终选出的智能体集合不同。
+      - capability: history_retrieval
+        mode: conditional
+        when: { depth_gte: L1 }
+
+      - capability: confidence_review
+        mode: conditional
+        when: { depth_gte: L1 }

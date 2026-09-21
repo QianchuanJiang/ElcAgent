@@ -1,34 +1,23 @@
-# ---------- 凭据（绝不提交）----------
-.env
-.env.*
-!.env.example
-
-# ---------- WorkBuddy 项目数据 ----------
-.workbuddy/
-**/.workbuddy/
-
-# ---------- Python ----------
+# Python
 __pycache__/
 *.py[cod]
 *.egg-info/
+.pytest_cache/
 .venv/
 venv/
-env/
 
-# ---------- 数据产物（由造数脚本重建，不入库）----------
-data/db/
-data/vector/
-data/snapshots/
-*.sqlite
-*.db
-
-# ---------- 日志 / 审计 ----------
-*.log
-*.jsonl
-audit*.jsonl
-
-# ---------- 系统 ----------
-.DS_Store
-
-# ---------- 本地私有文档（含敏感信息，绝不提交）----------
+# 环境与凭据（提交中不得包含任何凭据，docs/11 §11 第 9 项）
+.env
+.env.*
 _local/
+*.local.yaml
+
+# 本地数据库与运行产物
+*.db
+*.sqlite
+*.sqlite3
+*.log
+
+# IDE / AI 协作代理的工作记忆（含本地上下文与调试过程，不入库）
+.codebuddy/
+.workbuddy/

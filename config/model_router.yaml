@@ -1,0 +1,39 @@
+# ModelRouter 档位配置骨架（M0）
+#
+# 依据 docs/07 §1.4。
+# 唯一约束：业务代码不感知模型来源，只声明任务档位。
+#
+# M0 阶段仅启用 `stub` provider（docs/11 §3.5 允许简化：模型调用返回 stub）。
+# 真实 provider 配置留待 MVP 之后接入（docs/11 §10 第 1 项），
+# 届时只改本文件，不改任何业务代码。
+#
+# 密钥只走环境变量（docs/07 §1.5 第 6 条）：此处只写环境变量名，不写值。
+
+model_router:
+  default_profile: hybrid
+
+  profiles:
+    stub:
+      heavy:  { provider: stub, model: stub-heavy }
+      light:  { provider: stub, model: stub-light }
+      vision: { provider: stub, model: stub-vision }
+      embed:  { provider: stub, model: stub-embed }
+
+    # 以下为真实档位的占位骨架，M0 不启用（provider 尚未注册，resolve 会拒绝）。
+    hybrid:
+      heavy:  { provider: compat_api, model: "<重档模型>", api_key_env: ELCAGENT_HEAVY_API_KEY }
+      light:  { provider: compat_api, model: "<轻档模型>", api_key_env: ELCAGENT_LIGHT_API_KEY }
+      vision: { provider: compat_api, model: "<视觉模型>", api_key_env: ELCAGENT_VISION_API_KEY }
+      embed:  { provider: local,      model: "<本地嵌入模型>" }
+
+  routing_rules:
+    - match: { agent: A01_supervisor }
+      profile: stub
+    - match: { agent: A03_data_steward }
+      profile: stub
+    - match: { phase: semantic }
+      profile: stub
+
+  fallback:
+    on_timeout_ms: 20000
+    chain: [stub]

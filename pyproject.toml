@@ -1,0 +1,28 @@
+[project]
+name = "elcagent"
+version = "0.1.0"
+description = "ElecAgent · 电力气象防灾多智能体协同研判系统（能力验证型）"
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.6",
+    "SQLAlchemy>=2.0",
+    "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src", "."]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-q"

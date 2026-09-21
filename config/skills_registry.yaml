@@ -1,0 +1,119 @@
+# 技能注册表（M0 种子：3 个技能）
+#
+# 依据 docs/11 §3.2：3 个种子技能定义。
+# 字段规范见 docs/04 §2。
+#
+# 说明：`description` 决定模型工具调用命中率，必须写清**触发条件与不适用场景**
+#      （docs/04 §6 陷阱 2）。
+#
+# 注：docs/03 §3 信封示例中的 `rule.eval_threshold_rules` 与 docs/04 §3.6 的
+#     `rule.eval_threshold` 不一致，此处以技能清单 docs/04 为准。
+
+version: v1.0
+
+skills:
+  # ---------------------------------------------------------------- 纯计算
+  - skill_id: risk.calc_icing_load
+    name: 覆冰荷载估算
+    description: >
+      依据等值覆冰厚度、档距与导线参数，按物理公式估算覆冰荷载并外推增长趋势。
+      触发条件：已知观测或预报的覆冰厚度且需要数值化荷载结论时调用。
+      不适用：无覆冰观测数据、或需要跨案例语义归因时——前者应先调用 meteo 组取数，
+      后者应调用 risk.explain_factors。
+    category: risk
+    impl_mode: formula
+    deterministic: true
+    owner_agents: [A01_supervisor]
+    permission_scope: specialist
+    input_schema:
+      type: object
+      required: [span_id, icing_mm, span_length_m]
+      properties:
+        span_id: { type: string }
+        icing_mm: { type: number, minimum: 0 }
+        span_length_m: { type: number, exclusiveMinimum: 0 }
+        design_icing_mm: { type: number, minimum: 0 }
+        growth_rate_mm_per_h: { type: number }
+      additionalProperties: false
+    output_schema:
+      type: object
+      required: [span_id, icing_load_n_per_m, overload_ratio]
+      properties:
+        span_id: { type: string }
+        icing_load_n_per_m: { type: number, minimum: 0 }
+        overload_ratio: { type: number, minimum: 0 }
+        projected_6h_mm: { type: number, minimum: 0 }
+      additionalProperties: false
+    rate_limit: { max_calls: 300, window_s: 60 }
+    timeout_ms: 2000
+    audit_level: summary
+    version: v1.0
+    cache_ttl_s: 300
+
+  # ---------------------------------------------------------------- 查表
+  - skill_id: data.map_legacy_code
+    name: 历史编码映射
+    description: >
+      把上游业务系统的历史线路编码映射为标准编码，用于统一数据口径。
+      触发条件：拿到来源系统的线路编码且需要跨系统对齐时调用。
+      不适用：编码已在标准口径内（此时应调用 data.resolve_master）；
+      映射表无命中时本技能返回 matched=false，不得猜测相近编码。
+    category: data
+    impl_mode: query
+    deterministic: true
+    owner_agents: [A03_data_steward]
+    permission_scope: operator
+    input_schema:
+      type: object
+      required: [source_system, legacy_code]
+      properties:
+        source_system: { type: string, enum: [system_a, system_b, system_c, system_d] }
+        legacy_code: { type: string, minLength: 1 }
+      additionalProperties: false
+    output_schema:
+      type: object
+      required: [matched, standard_code]
+      properties:
+        matched: { type: boolean }
+        standard_code: { type: [string, "null"] }
+        confidence: { type: number, minimum: 0, maximum: 1 }
+      additionalProperties: false
+    rate_limit: { max_calls: 600, window_s: 60 }
+    timeout_ms: 800
+    audit_level: summary
+    version: v1.0
+    cache_ttl_s: 600
+
+  # ---------------------------------------------------------------- 走模型
+  - skill_id: model.extract_json
+    name: 强结构化抽取
+    description: >
+      从非结构化文本中抽取符合给定 JSON Schema 的结构化字段，失败时附带错误信息重试一次。
+      触发条件：需要把预警报文、用户自然语言等文本转为受 schema 约束的结构时调用。
+      不适用：需要物理数值计算时不得调用本技能（数值必须来自确定性公式）。
+    category: model
+    impl_mode: model
+    deterministic: false
+    owner_agents: [A01_supervisor]
+    permission_scope: specialist
+    input_schema:
+      type: object
+      required: [text, target_schema]
+      properties:
+        text: { type: string, minLength: 1 }
+        target_schema: { type: object }
+        max_retry: { type: integer, minimum: 0, maximum: 1, default: 1 }
+      additionalProperties: false
+    output_schema:
+      type: object
+      required: [parsed, confidence]
+      properties:
+        parsed: { type: object }
+        confidence: { type: number, minimum: 0, maximum: 1 }
+        retried: { type: boolean }
+      additionalProperties: false
+    rate_limit: { max_calls: 120, window_s: 60 }
+    timeout_ms: 20000
+    audit_level: full
+    version: v1.0
+    cache_ttl_s: 0
